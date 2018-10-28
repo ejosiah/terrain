@@ -1,5 +1,6 @@
 #pragma once
 #include <ncl/gl/Scene.h>
+#include <ncl/gl/shader_binding.h>
 
 using namespace std;
 using namespace ncl;
@@ -19,15 +20,14 @@ public:
 		glPatchParameteri(GL_PATCH_VERTICES, 4);
 		
 		glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, outer);
-		glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, outer);
-		texture = new NoiseTex2D(1);
-		_shader.sendUniform1ui("noise", texture->id());
+		glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, inner);
+		texture = new NoiseTex2D("noise", 1);
 		initPatch();
 		glClearColor(0, 0, 0, 1);
 	}
 
 	void initPatch() {
-		vec3 v[] = { { -lenght, -lenght, 0 },{ lenght, -lenght, 0 },{ lenght, lenght, 0 },{ -lenght, lenght, 0 } };
+		vec3 v[] = { { -lenght, 0, lenght },{ lenght, 0, lenght},{ lenght, 0, -lenght },{ -lenght, 0, -lenght } };
 		Mesh mesh;
 		mesh.positions = vector<vec3>(begin(v), end(v));
 		mesh.primitiveType = GL_PATCHES;
@@ -39,16 +39,19 @@ public:
 		font->render("FPS: " + std::to_string(fps), 10, _height - 20);
 		cam.view = lookAt({1.0f, 15.25f, 25.25f}, vec3(0), { 0, 1, 0 });
 		cam.model = rotate(mat4(1), radians(angle), { 0, 1, 0 });
-		cam.model = rotate(cam.model, radians(-90.0f), { 1, 0, 0 });
+
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		_shader.sendComputed(cam);
-		patch->draw(_shader);
+		shader("shader")([&](Shader& s) {
+			send(texture);
+			s.sendComputed(cam);
+			patch->draw(s);
+		});
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 
 	virtual void resized() override {
 		cam.projection = perspective(radians(60.0f), aspectRatio, 0.3f, 1000.0f);
-		font->resize(_width, _height);
+	//	font->resize(_width, _height);
 	}
 
 	virtual void update(float dt) override {
@@ -58,7 +61,7 @@ public:
 private:
 	ProvidedMesh* patch;
 	float angle;
-	float grids = 10000;
+	float grids =  10000;
 	float lenght = 30;
 	Texture2D* texture;
 	Font* font;
